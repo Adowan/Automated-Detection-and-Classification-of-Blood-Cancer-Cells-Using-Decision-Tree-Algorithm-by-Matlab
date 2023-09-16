@@ -1,0 +1,131 @@
+clc;
+%Showing original image
+I=imread('acute leuko.jpg');
+figure
+imshow(I)
+title('Original Image')
+%Resizing the original image
+Is=imresize(I,[256,256]);
+figure
+imshow(Is)
+title('Resizing Image')
+%Converting the image into grayscale
+G=rgb2gray(Is);
+figure
+imshow(G)
+title('Grayscale Image')
+%Enhancing the image
+S=decorrstretch(G,'tol',0.03);  % Concept of Decorrelation Stretch
+figure
+imshow(S)
+title('Enhanced Image')
+%Clustering image
+r=Is(:,:,1);
+g=Is(:,:,2);
+b=Is(:,:,3);
+data=double([r(:),g(:),b(:)]);
+nclasses=3;
+[m,n]=kmeans(data,nclasses);
+m=reshape(m,size(G,1),size(G,2));
+n=n/255;
+clusteredImage=label2rgb(m,n);
+figure
+imshow(clusteredImage);
+title('Clustered Image')
+%Conversion of Binary Image
+gray=rgb2gray(clusteredImage);
+[r,c] = size (clusteredImage);
+output=zeros(r,c);
+for i = 1 : r
+ for j = 1 : c
+     if clusteredImage(i,j) >130
+         output(i,j)=0;
+     else
+         output(i,j)=1;
+     end
+ end
+end
+ 
+figure
+ imshow(output);
+ %Morphological Operation
+magnification_value=2000;
+II=round(magnification_value/15);
+bw1 = bwareaopen(output,II);
+figure
+imshow(bw1)
+title('Small objects removed image')
+bw2=imclearborder(bw1);
+figure
+imshow(bw2)
+title('Border Corrected Image')
+bw3=imdilate(bw2,strel('disk',2));
+figure
+imshow(bw3)
+title('Morphological dilated image')
+S=regionprops(bw3,'All');
+for i=1:length(S)
+box_temp1 =S(i).BoundingBox;
+a = box_temp1(1) + (box_temp1(3)/2);
+f = box_temp1(2) + (box_temp1(4)/2);
+Elong(i) = 1 -(box_temp1(3)/box_temp1(4));
+center1_temp = S(i).Centroid;
+viscircles([a,f],20)
+end
+% Feature extraction
+% %Geometric Feature
+% using regionprops
+stats = regionprops('table',bw3, 'Area','EquivDiameter','Perimeter','Eccentricity','Solidity');
+%storing the vaues in other variables
+u=stats.Area;
+v=stats.EquivDiameter;
+w=stats.Perimeter;
+x=stats.Eccentricity;
+y=stats.Solidity;
+%Using area to find the diameter
+r=sqrt(u/(4*pi))*0.2645;
+r1=r/2;    %calculating radius
+Geo_Feature=[u r r1 w x y];
+%%Textural Feature
+%Derive statistics from Gray Level Co-Occurence Matrix(GLCM)
+glcm=graycomatrix(gray);
+stats1=graycoprops(glcm,'Contrast Correlation Energy Homogeneity');
+%storing the values in other variables
+Contrast=stats1.Contrast;
+Correlation=stats1.Correlation;
+Energy=stats1.Energy;
+Homogeneity=stats1.Homogeneity;
+Entropy=entropy(gray);
+text_Feature=[ Energy Entropy Correlation Contrast Homogeneity];
+%%Color feature
+r=Is(:,:,1);
+g=Is(:,:,2);
+b=Is(:,:,3);
+% Get Means
+meanR=mean(r(:));
+meanG=mean(g(:));
+meanB=mean(b(:));
+Co_Feature=[meanR meanG meanB];
+text_Feature=[ Energy Entropy Correlation Contrast Homogeneity];
+B=zeros(3,6); %New 3*6 matrix filled with Zeros
+%Mapping elements of text_Feature to B
+B(1,1:5)=text_Feature(1,:);
+Co_Feature=[meanR meanG meanB];
+D=zeros(3,6); %New 3*6 matrix filled with Zeros
+%Mapping elements of text_Feature to D
+D(1,1:3)=Co_Feature(1,:);
+Feature=[Geo_Feature B D];
+% xlswrite('Feature.xls',Feature)
+numTrees=60;
+label = [1,2,3];
+rfModel= TreeBagger(numTrees, Feature,label, 'Method','classification')
+yfit4= predict(rfModel,Feature)
+if yfit4{1}=='1'
+    msgbox('Acute Lymphocytic Leukemia');
+elseif yfit4{1}=='2'
+    msgbox('Acute Myeloid Leukemia');
+elseif yfit4{1}=='3'
+    msgbox('Chronic Lymphocytic Leukemia');
+% elseif yfit4{1}=='4'
+%     msgbox('Chronic ML');
+end
