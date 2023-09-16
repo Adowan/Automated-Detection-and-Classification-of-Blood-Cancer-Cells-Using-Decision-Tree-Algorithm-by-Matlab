@@ -1,0 +1,2 @@
+# Automated-Detection-and-Classification-of-Blood-Cancer-Cells-Using-Decision-Tree-Algorithm-by-Matlab
+The pathological images of the unregulated white blood cells addressed as leukaemia can be automatically diagnosed with the aid of this detection and classification procedure with convenient decision tree algorithm, and the categorization of the tumour will be effectively carried out in relation to the morphological features.
